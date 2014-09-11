@@ -9,18 +9,29 @@ class Board
 end
 
 class Peg
-  attr_accessor :color
-
-  def initialize(color: :black, secret: false, empty: false)
-    @peg = " __\n|XX|\n|XX|\n"
-    if empty then @peg.gsub!("X", " ") end
-    if secret then @peg.gsub!("X", "?") end
-    @peg[10,2] = @peg[10,2].underline
+  def initialize(color: :black, empty: false, secret: false)
     @color = color
+
+    if empty
+      @peg = "  ".colorize(:background => :black) + " "
+    elsif secret
+      @peg = "??".white.on_black + " "
+    else
+      @peg = "XX".colorize(:color => @color).colorize(:background => @color) + " "
+    end
+
+
+
   end
 
   def to_s
-    return @peg.colorize(@color)
+    return @peg
   end
 
 end
+
+blue= Peg.new(color: :blue)
+secret = Peg.new(secret: true)
+empty = Peg.new(empty: true)
+
+puts "#{blue}#{empty}#{secret}"
