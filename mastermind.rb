@@ -27,6 +27,7 @@ class Game
 
     generate_secret_sequence
     show_instructions
+    play
   end
 
 
@@ -44,6 +45,8 @@ class Game
         color_list.delete_at(i)
       end
     end
+
+    puts @secret_sequence
   end
 
 
@@ -63,8 +66,6 @@ class Game
     puts "\nYou are trying to guess a sequence of #{@pegs} colors. After each guess, you will see how close you are. Each [x] represents one peg that is the correct color in the correct place; each [o] represents a peg that is the correct color but not in the correct place; and each [ ] represents a peg that is an incorrect color. You have #{@tries} tries.\n"
     puts @board
     puts "Enter a sequence of #{@pegs} colors. Possible colors are #{list_to_text(color_strings)}. There #{if @duplicates then "may be" else "will not be" end} multiple pegs of the same color."
-
-
   end
 
 
@@ -91,10 +92,110 @@ class Game
 
 
   def play
+    won, lost = false, false
 
+    while not (won || lost)
+
+      print "Guess a sequence: "
+      guess = gets.chomp
+      guess = parse_guess(guess)
+      while not guess
+        guess = gets.chomp
+        guess = parse_guess(guess)
+      end
+      hint = accuracy_check(guess)
+
+      if guess == @secret_sequence
+        won = true
+        @board.update(guess, hint, @secret_sequence, @current_try)
+        abort "You win...this time."
+      elsif @current_try == @tries - 1
+        lost = true
+        @board.update(guess, hint, @secret_sequence, @current_try)
+        abort "I win. Ha-ha. </Nelson Muntz>"
+      else
+        @board.update(guess, hint, @secret_sequence, @current_try)
+        @current_try += 1
+      end
+    end
   end
 
 
+  def parse_guess(guess)
+    parsed_array = []
+    if guess == ""
+      print "You didn't enter a guess! Enter one! "
+      return nil
+    end
+    if guess.include? " "
+      guess_array = guess.split(" ")
+    else
+      guess_array = guess.split("")
+    end
+
+    if guess_array.length < @pegs
+      print "You need to enter a #{@pegs}-color sequence. Try again. "
+      return nil
+    elsif guess_array.length > @pegs
+      guess_array = guess_array[0...@pegs]
+      puts "You entered too long of a sequence, so it was truncated to #{@pegs} colors. It's now #{guess_array.join(" ").upcase}."
+    end
+
+    guess_array.each do |color|
+
+      case color.downcase
+      when "red", "r"
+        parsed_array << :light_red
+      when "green", "g"
+        parsed_array << :light_green
+      when "yellow", "y"
+        parsed_array << :light_yellow
+      when "blue", "b"
+        parsed_array << :light_blue
+      when "magenta", "m"
+        if @colors < 5
+          print "There are no magenta pegs in this game. Enter a new guess. "
+          return nil
+        end
+        parsed_array << :light_magenta
+      when "cyan", "c"
+        if @colors < 6
+          print "There are no cyan pegs in this game. Enter a new guess. "
+          return nil
+        end
+        parsed_array << :light_cyan
+      else
+        print "#{color} does not correspond to a valid peg color. Re-enter your guess. "
+        return nil
+      end
+    end
+
+    return parsed_array
+  end
+
+
+  def accuracy_check(guess)
+
+    hint = []
+    i = 0
+
+    @secret_counts = Hash[@secret_sequence.collect { |color| [color, 0] }]
+
+    (@secret_sequence.length).times do
+      if @secret_sequence[i] == guess[i]
+      #  @secret_counts[guess[i]] += 1
+        hint << "[x]"
+      elsif @secret_sequence.include? guess[i]
+        if @secret_counts[guess[i]] == 0 then hint << "[o]" else hint << "[ ]" end
+        @secret_counts[guess[i]] += 1
+      else
+        hint << "[ ]"
+      end
+      i += 1
+    end
+
+    return " -- " + hint.sort.reverse.join("")
+  end
 end
 
 class Board
@@ -127,6 +228,10 @@ class Board
         col += 1
       end
 
+      if @board[row].length > @pegs
+        row_string += @board[row][col]
+      end
+
       if row < 9
         row_label = " #{row+1} "
       else
@@ -134,7 +239,7 @@ class Board
       end
 
       if row == @tries
-        row_label = " " * @tries.to_s.length + "  "
+        row_label = "   "
       end
 
       board_string += (row_label + row_string + "\n")
@@ -145,20 +250,34 @@ class Board
   end
 
 
-  def update_board(guessed_sequence, current_try)
-    current_row = @board[current_try]
-    guessed_row = []
+  def update(guessed_sequence, hint, answer, current_try)
+    won = guessed_sequence == answer
+    lost = current_try == @tries - 1
 
-    i=0
-    current_row.each do |peg|
-      guessed_row << Peg.new(color: guessed_sequence[i])
-      i += 1
+    guessed_row = make_row(guessed_sequence)
+
+    if not (won or lost)
+      guessed_row << hint
+    else
+      @board[@tries] = make_row(answer)
     end
 
     @board[current_try] = guessed_row
+
     puts self
   end
 
+
+  def make_row(sequence)
+    pegs = []
+    i=0
+    sequence.each do |peg|
+      pegs << Peg.new(color: sequence[i])
+      i += 1
+    end
+
+    return pegs
+  end
 end
 
 class Peg
@@ -180,13 +299,5 @@ class Peg
   end
 end
 
-def peg_test
-  blue = Peg.new(color: :blue)
-  empty = Peg.new(empty: true)
-  secret = Peg.new(secret: true)
-
-  print blue, empty, secret
-end
-
-g = Game.new
+g = Game.new(4,4,12)
 g.play
