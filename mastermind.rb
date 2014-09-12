@@ -1,8 +1,9 @@
 require 'colorize'
 
 class Game
+  attr_accessor :secret_sequence, :current_try
 
-  def initialize(colors=4, pegs=4, tries=8, duplicates=false)
+  def initialize(colors=4, pegs=4, tries=8, duplicates=true)
 
     @colors = colors
     @current_try = 0
@@ -16,12 +17,16 @@ class Game
       colors = 6
     end
 
-    all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_pink, :light_cyan]
+    if pegs > colors and not duplicates
+      puts "If you want more pegs than colors, you have to allow duplicates."
+      @duplicates = true
+    end
+
+    all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_magenta, :light_cyan]
     @peg_colors = all_peg_colors[0...@pegs]
 
     generate_secret_sequence
-
-    puts @board
+    show_instructions
   end
 
 
@@ -29,20 +34,64 @@ class Game
 
     @secret_sequence = []
     if @duplicates
-      @pegs.times { @secret_sequence << @peg_colors[rand(0...@colors)] }
+      @pegs.times { @secret_sequence << @peg_colors[rand(0...@peg_colors.length)] }
     else
+      color_list = @peg_colors.collect { |color| color}
+
       @pegs.times do
-        i = rand(0...@peg_colors.length)
-        @secret_sequence << @peg_colors[i]
-        @peg_colors.delete_at(i)
+        i = rand(0...color_list.length)
+        @secret_sequence << color_list[i]
+        color_list.delete_at(i)
       end
     end
+  end
+
+
+  def show_instructions
+    color_codes = {
+      :light_red => ("(R)ed").colorize(:black),
+      :light_green => ("(G)reen").colorize(:black),
+      :light_yellow => ("(Y)ellow").colorize(:black),
+      :light_blue => ("(B)lue").colorize(:black),
+      :light_magenta => ("(M)agenta").colorize(:black),
+      :light_cyan => ("(C)yan").colorize(:black)
+    }
+
+    color_strings = []
+    @peg_colors.each { |peg| color_strings << color_codes[peg] }
+
+    puts "\nYou are trying to guess a sequence of #{@pegs} colors. After each guess, you will see how close you are. Each [x] represents one peg that is the correct color in the correct place; each [o] represents a peg that is the correct color but not in the correct place; and each [ ] represents a peg that is an incorrect color. You have #{@tries} tries.\n"
+    puts @board
+    puts "Enter a sequence of #{@pegs} colors. Possible colors are #{list_to_text(color_strings)}. There #{if @duplicates then "may be" else "will not be" end} multiple pegs of the same color."
+
 
   end
 
 
+  def list_to_text(list, separator=" and ")
+    if list.length > 2
+      i = 0
+      text = ""
+
+      (list.length - 1).times do
+        text += list[i] + ", "
+        i += 1
+      end
+
+      text += (separator.lstrip + list.last)
+      return text
+
+    elsif list.length == 2
+      return list.join(separator)
+
+    else
+      return list[0]
+    end
+  end
+
 
   def play
+
   end
 
 
@@ -85,8 +134,9 @@ class Board
       end
 
       if row == @tries
-        # change row label to the appropriate number of spaces rather than a number for the secret sequence
+        row_label = " " * @tries.to_s.length + "  "
       end
+
       board_string += (row_label + row_string + "\n")
       row += 1
     end
@@ -95,13 +145,19 @@ class Board
   end
 
 
-  def update_board(guessed_sequence)
+  def update_board(guessed_sequence, current_try)
+    current_row = @board[current_try]
+    guessed_row = []
+
+    i=0
+    current_row.each do |peg|
+      guessed_row << Peg.new(color: guessed_sequence[i])
+      i += 1
+    end
+
+    @board[current_try] = guessed_row
+    puts self
   end
-
-
-  def reveal(secret_sequence)
-  end
-
 
 end
 
@@ -110,11 +166,11 @@ class Peg
     @color = color
 
     if empty
-      @peg = "[] "
+      @peg = "[ ] "
     elsif secret
-      @peg = "??".white.on_black + " "
+      @peg = "[?]".white.on_black + " "
     else
-      @peg = "XX".colorize(:color => @color).colorize(:background => @color) + " "
+      @peg = "[X]".colorize(:color => @color) + " "
     end
 
   end
@@ -132,4 +188,5 @@ def peg_test
   print blue, empty, secret
 end
 
-g=Game.new(5,6,10)
+g = Game.new
+g.play
