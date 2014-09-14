@@ -27,7 +27,6 @@ class Game
 
     generate_secret_sequence
     show_instructions
-    play
   end
 
 
@@ -39,8 +38,6 @@ class Game
     else
       @secret_sequence = @peg_colors.sample(@pegs)
     end
-
-    puts @secret_sequence.join(" ").gsub("light_", "")
   end
 
 
@@ -98,13 +95,13 @@ class Game
 
 
       if guess == @secret_sequence
-        return 1
         puts "You win...this time."
+        return 1
       elsif @current_try == @tries - 1
-        return -1
         puts "You lose. Ha-ha. </Nelson Muntz>"
+        return -1
       end
-      
+
       @current_try += 1
     end
   end
