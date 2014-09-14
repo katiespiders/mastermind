@@ -3,13 +3,12 @@ require 'colorize'
 class Game
   def initialize(settings)
 
-    @colors = settings[:colors]
+    @colors = settings[:colors] # implemented but not used
     @pegs = settings[:pegs]
     @tries = settings[:tries]
-    @duplicates = settings[:duplicates]
+    @duplicates = settings[:duplicates] # implemented but not used
 
     @board = Board.new(@pegs, @tries)
-    @current_try = 0
 
     all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_magenta, :light_cyan]
     available_colors = all_peg_colors.length
@@ -53,9 +52,22 @@ class Game
 
     color_strings = @peg_colors.collect { |color| color_codes[color] }
 
-    puts "\nYou are trying to guess a sequence of #{@pegs} colors. After each guess, you will see how close you are. Each [x] represents one peg that is the correct color in the correct place; each [o] represents a peg that is the correct color but not in the correct place; and each [ ] represents a peg that is an incorrect color. You have #{@tries} tries.\n"
+    puts <<-eos
+
+You are trying to guess a sequence of #{@pegs} colors. After each guess, you will
+see how close you are. Each [x] represents one peg that is the correct color in
+the correct place; each [o] represents a peg that is the correct color but not
+in the correct place; and each [ ] represents a peg that is an incorrect color.
+You have #{@tries} tries.
+eos
+
     puts @board
-    puts "Enter a sequence of #{@pegs} colors. Possible colors are #{list_to_text(color_strings)}. There #{if @duplicates then "may be" else "will not be" end} multiple pegs of the same color."
+
+    puts <<-eos
+Enter a sequence of #{@pegs} colors. Possible colors are #{list_to_text(color_strings)}.
+There #{if @duplicates then "may be" else "will not be" end} multiple pegs of the same color.
+
+eos
   end
 
 
@@ -82,6 +94,8 @@ class Game
 
 
   def play
+
+    current_try = 0
     while true
       print "Guess a sequence: "
       guess = gets.chomp
@@ -91,17 +105,17 @@ class Game
         guess = parse_guess(guess)
       end
       hint = accuracy_check(guess)
-      @board.update(guess, hint, @secret_sequence, @current_try)
+      @board.update(guess, hint, @secret_sequence, current_try)
 
       if guess == @secret_sequence
-        puts "You win...this time."
+        puts "You win...this time.\n"
         return true
-      elsif @current_try == @tries - 1
-        puts "You lose. Ha-ha. </Nelson Muntz>"
+      elsif current_try == @tries - 1
+        puts "You lose. Ha-ha. </Nelson Muntz>\n"
         return false
       end
 
-      @current_try += 1
+      current_try += 1
     end
   end
 
@@ -301,7 +315,7 @@ def main
   game_on = true
   score = {player: 0, computer: 0}
 
-  while game_on  
+  while game_on
     game = Game.new(settings)
 
     if game.play
@@ -319,7 +333,7 @@ def main
     if negatives.include? continue then game_on = false end
   end
 
-  puts "Final score: You #{score[:player]}, Computer #{score[:computer]}"
+  puts "\nFinal score: You #{score[:player]}, Computer #{score[:computer]}"
 end
 
 main
