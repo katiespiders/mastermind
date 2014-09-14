@@ -85,10 +85,7 @@ class Game
 
 
   def play
-    over = false
-
-    while not over
-      puts "round #{@current_try}, over=#{over}"
+    while true
       print "Guess a sequence: "
       guess = gets.chomp
       guess = parse_guess(guess)
@@ -101,14 +98,14 @@ class Game
 
 
       if guess == @secret_sequence
+        return 1
         puts "You win...this time."
-        over = true
       elsif @current_try == @tries - 1
+        return -1
         puts "You lose. Ha-ha. </Nelson Muntz>"
-        over = true
       end
+      
       @current_try += 1
-      puts "on to round #{@current_try}, over=#{over}"
     end
   end
 
