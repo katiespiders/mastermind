@@ -1,18 +1,18 @@
 require 'colorize'
 
 class Game
-  def initialize(colors=6, pegs=4, tries=8, duplicates=true)
+  def initialize(settings)
 
-    @colors = colors
-    @current_try = 0
-    @pegs = pegs
-    @tries = tries
-    @duplicates = duplicates
+    @colors = settings[:colors]
+    @pegs = settings[:pegs]
+    @tries = settings[:tries]
+    @duplicates = settings[:duplicates]
+
     @board = Board.new(@pegs, @tries)
+    @current_try = 0
 
     all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_magenta, :light_cyan]
     available_colors = all_peg_colors.length
-
 
     if @colors > available_colors
       puts "You can't have #{@colors} colors. You may have #{available_colors}."
@@ -20,7 +20,7 @@ class Game
     end
     @peg_colors = all_peg_colors.sample(@colors)
 
-    if pegs > colors && (not duplicates)
+    if @pegs > @colors && (not @duplicates)
       puts "If you want more pegs than colors, you have to allow duplicates."
       @duplicates = true
     end
@@ -93,13 +93,12 @@ class Game
       hint = accuracy_check(guess)
       @board.update(guess, hint, @secret_sequence, @current_try)
 
-
       if guess == @secret_sequence
         puts "You win...this time."
-        return 1
+        return true
       elsif @current_try == @tries - 1
         puts "You lose. Ha-ha. </Nelson Muntz>"
-        return -1
+        return false
       end
 
       @current_try += 1
@@ -186,6 +185,7 @@ class Game
 
     return " -- " + hint.join("")
   end
+
 end
 
 class Board
@@ -282,5 +282,44 @@ class Peg
   end
 end
 
-g = Game.new
-g.play
+
+def main
+  puts "Do you want to play an (e)asy, (m)edium, (h)ard, or (r)idiculous game?"
+  difficulty = gets.chomp.downcase
+
+  case difficulty
+  when 'e', 'easy'
+    settings = {colors: 6, pegs: 4, tries: 12, duplicates: false}
+  when 'm', 'medium'
+    settings = {colors: 6, pegs: 4, tries: 8, duplicates: true}
+  when 'h', 'hard'
+    settings = {colors: 6, pegs: 6, tries: 12, duplicates: true}
+  when 'r', 'ridiculous'
+    settings = {colors: 6, pegs: 6, tries: 8, duplicates: true}
+  end
+
+  game_on = true
+  score = {player: 0, computer: 0}
+
+  while game_on  
+    game = Game.new(settings)
+
+    if game.play
+      score[:player] += 1
+    else
+      score[:computer] += 1
+    end
+
+    puts "Current score: You #{score[:player]}, Computer #{score[:computer]}"
+
+    puts "Want to play again?"
+    continue = gets.chomp.downcase
+    negatives = ['n', 'no', 'q', 'quit']
+
+    if negatives.include? continue then game_on = false end
+  end
+
+  puts "Final score: You #{score[:player]}, Computer #{score[:computer]}"
+end
+
+main
