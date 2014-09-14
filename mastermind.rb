@@ -1,9 +1,7 @@
 require 'colorize'
 
 class Game
-  attr_accessor :secret_sequence, :current_try
-
-  def initialize(colors=4, pegs=4, tries=8, duplicates=true)
+  def initialize(colors=6, pegs=4, tries=8, duplicates=true)
 
     @colors = colors
     @current_try = 0
@@ -12,18 +10,20 @@ class Game
     @duplicates = duplicates
     @board = Board.new(@pegs, @tries)
 
-    if colors > 6
-      puts "You can't have #{colors} colors. You may have 6."
-      colors = 6
-    end
+    all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_magenta, :light_cyan]
+    available_colors = all_peg_colors.length
 
-    if pegs > colors and not duplicates
+
+    if @colors > available_colors
+      puts "You can't have #{@colors} colors. You may have #{available_colors}."
+      @colors = available_colors
+    end
+    @peg_colors = all_peg_colors.sample(@colors)
+
+    if pegs > colors && (not duplicates)
       puts "If you want more pegs than colors, you have to allow duplicates."
       @duplicates = true
     end
-
-    all_peg_colors = [:light_red, :light_green, :light_blue, :light_yellow, :light_magenta, :light_cyan]
-    @peg_colors = all_peg_colors[0...@pegs]
 
     generate_secret_sequence
     show_instructions
@@ -35,33 +35,26 @@ class Game
 
     @secret_sequence = []
     if @duplicates
-      @pegs.times { @secret_sequence << @peg_colors[rand(0...@peg_colors.length)] }
+      @pegs.times { @secret_sequence << @peg_colors[rand(0...@colors)] }
     else
-      color_list = @peg_colors.collect { |color| color}
-
-      @pegs.times do
-        i = rand(0...color_list.length)
-        @secret_sequence << color_list[i]
-        color_list.delete_at(i)
-      end
+      @secret_sequence = @peg_colors.sample(@pegs)
     end
 
-    puts @secret_sequence
+    puts @secret_sequence.join(" ").gsub("light_", "")
   end
 
 
   def show_instructions
     color_codes = {
-      :light_red => ("(R)ed").colorize(:black),
-      :light_green => ("(G)reen").colorize(:black),
-      :light_yellow => ("(Y)ellow").colorize(:black),
-      :light_blue => ("(B)lue").colorize(:black),
-      :light_magenta => ("(M)agenta").colorize(:black),
-      :light_cyan => ("(C)yan").colorize(:black)
+      :light_red => ("(R)ed"),
+      :light_green => ("(G)reen"),
+      :light_yellow => ("(Y)ellow"),
+      :light_blue => ("(B)lue"),
+      :light_magenta => ("(M)agenta"),
+      :light_cyan => ("(C)yan")
     }
 
-    color_strings = []
-    @peg_colors.each { |peg| color_strings << color_codes[peg] }
+    color_strings = @peg_colors.collect { |color| color_codes[color] }
 
     puts "\nYou are trying to guess a sequence of #{@pegs} colors. After each guess, you will see how close you are. Each [x] represents one peg that is the correct color in the correct place; each [o] represents a peg that is the correct color but not in the correct place; and each [ ] represents a peg that is an incorrect color. You have #{@tries} tries.\n"
     puts @board
@@ -92,10 +85,10 @@ class Game
 
 
   def play
-    won, lost = false, false
+    over = false
 
-    while not (won || lost)
-
+    while not over
+      puts "round #{@current_try}, over=#{over}"
       print "Guess a sequence: "
       guess = gets.chomp
       guess = parse_guess(guess)
@@ -104,19 +97,18 @@ class Game
         guess = parse_guess(guess)
       end
       hint = accuracy_check(guess)
+      @board.update(guess, hint, @secret_sequence, @current_try)
+
 
       if guess == @secret_sequence
-        won = true
-        @board.update(guess, hint, @secret_sequence, @current_try)
-        abort "You win...this time."
+        puts "You win...this time."
+        over = true
       elsif @current_try == @tries - 1
-        lost = true
-        @board.update(guess, hint, @secret_sequence, @current_try)
-        abort "I win. Ha-ha. </Nelson Muntz>"
-      else
-        @board.update(guess, hint, @secret_sequence, @current_try)
-        @current_try += 1
+        puts "You lose. Ha-ha. </Nelson Muntz>"
+        over = true
       end
+      @current_try += 1
+      puts "on to round #{@current_try}, over=#{over}"
     end
   end
 
@@ -145,56 +137,60 @@ class Game
 
       case color.downcase
       when "red", "r"
-        parsed_array << :light_red
+        color_symbol = :light_red
       when "green", "g"
-        parsed_array << :light_green
+        color_symbol = :light_green
       when "yellow", "y"
-        parsed_array << :light_yellow
+        color_symbol = :light_yellow
       when "blue", "b"
-        parsed_array << :light_blue
+        color_symbol = :light_blue
       when "magenta", "m"
-        if @colors < 5
-          print "There are no magenta pegs in this game. Enter a new guess. "
-          return nil
-        end
-        parsed_array << :light_magenta
+        color_symbol = :light_magenta
       when "cyan", "c"
-        if @colors < 6
-          print "There are no cyan pegs in this game. Enter a new guess. "
-          return nil
-        end
-        parsed_array << :light_cyan
+        color_symbol = :light_cyan
       else
         print "#{color} does not correspond to a valid peg color. Re-enter your guess. "
         return nil
       end
-    end
 
+      if not @peg_colors.include? color_symbol
+        print "#{color_symbol.to_s.sub("light_","").capitalize} is not a valid peg color in this game. Enter a new guess. "
+        return nil
+      end
+      parsed_array << color_symbol
+    end
     return parsed_array
   end
 
 
   def accuracy_check(guess)
 
+    guess_array = guess.clone       # why did I have to do this to keep the original arrays (passed as arguments) from being permanently modified?
+    answer = @secret_sequence.clone
     hint = []
+
     i = 0
-
-    @secret_counts = Hash[@secret_sequence.collect { |color| [color, 0] }]
-
-    (@secret_sequence.length).times do
-      if @secret_sequence[i] == guess[i]
-      #  @secret_counts[guess[i]] += 1
+    (guess_array.length).times do
+      if guess_array[i] == answer[i]
         hint << "[x]"
-      elsif @secret_sequence.include? guess[i]
-        if @secret_counts[guess[i]] == 0 then hint << "[o]" else hint << "[ ]" end
-        @secret_counts[guess[i]] += 1
-      else
-        hint << "[ ]"
+        answer[i], guess_array[i] = :guess_array_match, :answer_match
       end
-      i += 1
+      i+=1
     end
 
-    return " -- " + hint.sort.reverse.join("")
+    i=0
+    (guess_array.length).times do
+      if answer.include? guess_array[i]
+        hint << "[o]"
+         j = answer.index(guess_array[i])
+         answer[j] = :color_match
+      end
+      i+=1
+    end
+
+    (guess_array.length - hint.length).times { hint << "[ ]"}
+
+    return " -- " + hint.join("")
   end
 end
 
@@ -251,12 +247,12 @@ class Board
 
 
   def update(guessed_sequence, hint, answer, current_try)
-    won = guessed_sequence == answer
-    lost = current_try == @tries - 1
+    won = (guessed_sequence == answer)
+    lost = (current_try == @tries - 1)
 
     guessed_row = make_row(guessed_sequence)
 
-    if not (won or lost)
+    if not (won || lost)
       guessed_row << hint
     else
       @board[@tries] = make_row(answer)
@@ -269,14 +265,7 @@ class Board
 
 
   def make_row(sequence)
-    pegs = []
-    i=0
-    sequence.each do |peg|
-      pegs << Peg.new(color: sequence[i])
-      i += 1
-    end
-
-    return pegs
+    return sequence.collect { |color| Peg.new(color: color) }
   end
 end
 
@@ -289,7 +278,7 @@ class Peg
     elsif secret
       @peg = "[?]".white.on_black + " "
     else
-      @peg = "[X]".colorize(:color => @color) + " "
+      @peg = "[*]".colorize(:color => @color) + " "
     end
 
   end
@@ -299,5 +288,5 @@ class Peg
   end
 end
 
-g = Game.new(4,4,12)
+g = Game.new
 g.play
